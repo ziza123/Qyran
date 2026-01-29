@@ -1,8 +1,3 @@
-"""
-Qyran - AI Sign Language Recognition System
-FastAPI Backend with JWT Authentication
-"""
-
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -15,29 +10,20 @@ from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
 SECRET_KEY = "your-secret-key-change-this-in-production"  # Change this!
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Database setup
+# мнау дата база 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./qyran.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Password hashing
+# парольді скрывать ететін жер 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# OAuth2 scheme for token extraction
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-# =============================================================================
-# DATABASE MODELS
-# =============================================================================
 
 class User(Base):
     """User database model"""
@@ -48,12 +34,8 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
-# =============================================================================
-# PYDANTIC SCHEMAS (Request/Response Models)
-# =============================================================================
+Base.metadata.create_all(bind=engine)
 
 class UserRegister(BaseModel):
     """Schema for user registration"""
@@ -79,10 +61,6 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
-
-# =============================================================================
-# UTILITY FUNCTIONS
-# =============================================================================
 
 def get_db():
     """Database dependency - provides DB session"""
@@ -148,17 +126,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     return user
 
-# =============================================================================
-# FASTAPI APP INITIALIZATION
-# =============================================================================
-
 app = FastAPI(
     title="Qyran API",
     description="AI-Powered Sign Language Recognition System - Authentication API",
     version="1.0.0"
 )
 
-# CORS Configuration - Allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React/Next.js dev servers
@@ -166,10 +139,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
 )
-
-# =============================================================================
-# API ENDPOINTS
-# =============================================================================
 
 @app.get("/")
 async def root():
@@ -184,7 +153,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     - Hashes password before storing
     - Returns user data (without password)
     """
-    # Check if username already exists
+    
     db_user = get_user_by_username(db, username=user_data.username)
     if db_user:
         raise HTTPException(
@@ -192,7 +161,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Username already registered"
         )
     
-    # Check if email already exists
+    
     db_user = get_user_by_email(db, email=user_data.email)
     if db_user:
         raise HTTPException(
@@ -200,7 +169,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
-    # Create new user with hashed password
+    
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
         username=user_data.username,
@@ -229,7 +198,6 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
@@ -257,10 +225,6 @@ async def protected_route(current_user: User = Depends(get_current_user)):
         "message": f"Hello {current_user.username}! This is a protected route.",
         "user_id": current_user.id
     }
-
-# =============================================================================
-# RUN SERVER
-# =============================================================================
 
 if __name__ == "__main__":
     import uvicorn
